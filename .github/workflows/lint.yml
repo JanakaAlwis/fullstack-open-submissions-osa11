@@ -36,29 +36,43 @@ jobs:
       - name: Run Playwright end-to-end tests
         run: PORT=8080 npm run test:e2e
 
+      - name: Notify Discord
+        if: always() 
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          STATUS:  ${{ job.status }}
+          SHA:     ${{ github.sha }}
+          ACTOR:   ${{ github.actor }}
+          URL:     ${{ github.event.pull_request.html_url || github.server_url }}
+        run: |
+          if [ "$STATUS" = "success" ]; then
+            TITLE="CI pipeline passed"
+            COLOR=3066993   # green
+          else
+            TITLE="CI pipeline failed"
+            COLOR=15158332  # red
+          fi
+          jq -nc \
+            --arg title "$TITLE" \
+            --arg desc  "Commit \`${SHA::7}\` by **${ACTOR}**\n<${URL}>" \
+            --argjson col $COLOR \
+            '{"embeds":[{"title":$title,"description":$desc,"color":$col}]}' \
+            | curl -H "Content-Type: application/json" -X POST -d @- "$WEBHOOK"
+
   deploy:
     needs: ci
-    # run only on direct pushes to main (never on PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/setup-node@v3
         with:
           node-version: 20
-
-      # install the Fly.io CLI
       - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      # build frontend so dist/ exists in the image
       - run: |
           npm ci
           npm run build
-
-      # deploy – flyctl will read FLY_API_TOKEN from env
       - name: Deploy to Fly.io
         run: flyctl deploy --remote-only
         env:
@@ -67,7 +81,8 @@ jobs:
   version:
     needs: deploy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
       - uses: actions/checkout@v3
 
