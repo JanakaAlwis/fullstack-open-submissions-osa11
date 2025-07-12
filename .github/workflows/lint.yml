@@ -38,6 +38,8 @@ jobs:
 
   deploy:
     needs: ci
+    # run only on direct pushes to main (never on PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
@@ -48,16 +50,19 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install flyctl
-        run: |
-          curl -L https://fly.io/install.sh | sh
-          echo "$HOME/.fly/bin" >> $GITHUB_PATH
+      # install the Fly.io CLI
+      - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Authenticate Fly.io
-        run: flyctl auth token ${{ secrets.FLY_API_TOKEN }}
+      # build frontend so dist/ exists in the image
+      - run: |
+          npm ci
+          npm run build
 
+      # deploy – flyctl will read FLY_API_TOKEN from env
       - name: Deploy to Fly.io
         run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   version:
     needs: deploy
