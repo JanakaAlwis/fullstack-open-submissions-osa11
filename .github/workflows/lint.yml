@@ -47,9 +47,13 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install flyctl
+        run: |
+          curl -L https://fly.io/install.sh | sh
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
+
       - name: Authenticate Fly.io
         run: flyctl auth token ${{ secrets.FLY_API_TOKEN }}
 
       - name: Deploy to Fly.io
         run: flyctl deploy --remote-only
-
