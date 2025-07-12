@@ -1,0 +1,18 @@
+name: Health check ping
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  push:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check /health endpoint
+        uses: jtalk/url-health-check-action@v2
+        with:
+          url: https://fullstack-open-submissions-osa11-cool-sea-9896.fly.dev/health
+          max-attempts: 3
+          retry-delay: 10s
