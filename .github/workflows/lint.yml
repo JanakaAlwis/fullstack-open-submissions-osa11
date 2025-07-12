@@ -1,26 +1,30 @@
-name: Lint
+name: CI pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
-  eslint-check:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install deps
+        run: npm ci
 
-      - name: Run ESLint
+      - name: Lint code
         run: npm run lint
+
+      - name: Build frontend bundle
+        run: npm run build
+
+      - name: Run unit & component tests
+        run: npm test
